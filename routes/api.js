@@ -8,11 +8,69 @@ module.exports = function (app) {
 
   app.route('/api/check')
     .post((req, res) => {
+      // if there's no puzzle, coordinatie or value
+      if (!req.body.puzzle || !req.body.coordinate || !req.body.value) {
+        return res.json({error: 'Required field(s) missing'})
+      }
 
+      let validatePuzzle = solver.validate(req.body.puzzle);
+
+      // if the puzzke is not valid from validate method
+      if (validatePuzzle !== true) {
+        return res.json(solver.validate(req.body.puzzle));
+      } else if (!/^[1-9]$/.test(req.body.value)) {
+        return res.json({ error: 'Invalid value' });
+      } else if (!/^[A-I][1-9]$/.test(req.body.coordinate)) {
+        return res.json({ error: 'Invalid coordinate' });
+      } 
+      else {
+        let rowName = ["A", "B", "C", "D", "E", "F", "G", "H", "I"];
+        let row = rowName.indexOf(req.body.coordinate[0]);
+        let column = req.body.coordinate[1] - 1;
+        let conflit = [];
+
+        if (!solver.checkRowPlacement(req.body.puzzle, row, column, req.body.value)) {
+          conflit.push("row");
+        }
+        if (!solver.checkColPlacement(req.body.puzzle, row, column, req.body.value)) {
+          conflit.push("column");
+        }
+        if (!solver.checkRegionPlacement(req.body.puzzle, row, column, req.body.value)) {
+          conflit.push("region");
+        }
+        if (conflit.length === 0) {
+          return res.json({ valid: true });
+        } else {
+          return res.json({ valid: false, conflict: conflit });
+        }
+      }
     });
     
   app.route('/api/solve')
     .post((req, res) => {
+      const puzzleToSolve = req.body.puzzle;
 
+      // if there's no puzzle
+      if (!puzzleToSolve) {
+        return res.json({ error: 'Required field missing' });
+      }
+
+      // if the puzzle is not valid
+      if (solver.validate(req.body.puzzle) !== true) {
+        return res.json(solver.validate(req.body.puzzle))
+      }
+        
+
+      // response from solve method
+      let returnedMessage = solver.solve(puzzleToSolve);
+
+      console.log('receive from solver >>', returnedMessage);
+
+      // if the puzzle cannot be solved
+      if (!returnedMessage) {
+        res.json({ error: 'Puzzle cannot be solved' });
+      } else {
+        res.json({ solution: returnedMessage });
+      }
     });
-};
+  };
